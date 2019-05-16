@@ -118,8 +118,8 @@ if ($debug) { print "DEBUG: SSHCMD: $sshcmd\n"; }
 my ($sourcehost,$sourcefs,$sourceisroot) = getssh($rawsourcefs);
 my ($targethost,$targetfs,$targetisroot) = getssh($rawtargetfs);
 
-my $sourcesudocmd = $sourceisroot ? '' : $sudocmd;
-my $targetsudocmd = $targetisroot ? '' : $sudocmd;
+my $sourcesudocmd = sudocmd($sourceisroot);
+my $targetsudocmd = sudocmd($targetisroot);
 
 # figure out whether compression, mbuffering, pv
 # are available on source, target, local machines.
@@ -215,10 +215,9 @@ exit $exitcode;
 
 sub getchilddatasets {
 	my ($rhost,$fs,$isroot,%snaps) = @_;
-	my $mysudocmd;
+	my $mysudocmd = sudocmd($isroot);
 	my $fsescaped = escapeshellparam($fs);
 
-	if ($isroot) { $mysudocmd = ''; } else { $mysudocmd = $sudocmd; }
 	if ($rhost ne '') {
 		$rhost = "$sshcmd $rhost";
 		# double escaping needed
@@ -572,11 +571,10 @@ sub syncdataset {
 					if (!$quiet) { print "Removing $targetfs because no matching snapshots were found\n"; }
 
 					my $rcommand = '';
-					my $mysudocmd = '';
+					my $mysudocmd = sudocmd($targetisroot);
 					my $targetfsescaped = escapeshellparam($targetfs);
 
 					if ($targethost ne '') { $rcommand = "$sshcmd $targethost"; }
-					if (!$targetisroot) { $mysudocmd = $sudocmd; }
 
 					my $prunecmd = "$mysudocmd $zfscmd destroy -r $targetfsescaped; ";
 					if ($targethost ne '') {
@@ -1052,8 +1050,7 @@ sub setzfsvalue {
 	}
 
 	if ($debug) { print "DEBUG: setting $property to $value on $fs...\n"; }
-	my $mysudocmd;
-	if ($isroot) { $mysudocmd = ''; } else { $mysudocmd = $sudocmd; }
+	my $mysudocmd = sudocmd($isroot);
 	if ($debug) { print "$rhost $mysudocmd $zfscmd set $property=$value $fsescaped\n"; }
 	system("$rhost $mysudocmd $zfscmd set $property=$value $fsescaped") == 0
 		or warn "WARNING: $rhost $mysudocmd $zfscmd set $property=$value $fsescaped died: $?, proceeding anyway.\n";
@@ -1072,8 +1069,7 @@ sub getzfsvalue {
 	}
 
 	if ($debug) { print "DEBUG: getting current value of $property on $fs...\n"; }
-	my $mysudocmd;
-	if ($isroot) { $mysudocmd = ''; } else { $mysudocmd = $sudocmd; }
+	my $mysudocmd = sudocmd($isroot);
 	if ($debug) { print "$rhost $mysudocmd $zfscmd get -H $property $fsescaped\n"; }
 	open FH, "$rhost $mysudocmd $zfscmd get -H $property $fsescaped |";
 	my $value = <FH>;
@@ -1093,13 +1089,7 @@ sub dataset_exists {
 
 	my $fsescaped = escapeshellparam($fs);
 
-	my $mysudocmd;
-	if ($isroot) {
-		$mysudocmd = '';
-	}
-	else {
-		$mysudocmd = $sudocmd;
-	}
+	my $mysudocmd = sudocmd($isroot);
 
 	my $command = "$rhost $mysudocmd $zfscmd get -H creation $fsescaped";
 
@@ -1256,8 +1246,7 @@ sub pruneoldsyncsnaps {
 
 	my $hostid = hostname();
 
-	my $mysudocmd;
-	if ($isroot) { $mysudocmd=''; } else { $mysudocmd = $sudocmd; }
+	my $mysudocmd = sudocmd($isroot);
 
 	my @prunesnaps;
 
@@ -1329,8 +1318,7 @@ sub newsyncsnap {
 		# double escaping needed
 		$fsescaped = escapeshellparam($fsescaped);
 	}
-	my $mysudocmd;
-	if ($isroot) { $mysudocmd = ''; } else { $mysudocmd = $sudocmd; }
+	my $mysudocmd = sudocmd($isroot);
 	my $hostid = hostname();
 	my %date = getdate();
 	my $snapname = "syncoid\_$identifier$hostid\_$date{'stamp'}";
@@ -1353,8 +1341,7 @@ sub targetexists {
 		# double escaping needed
 		$fsescaped = escapeshellparam($fsescaped);
 	}
-	my $mysudocmd;
-	if ($isroot) { $mysudocmd = ''; } else { $mysudocmd = $sudocmd; }
+	my $mysudocmd = sudocmd($isroot);
 	my $checktargetcmd = "$rhost $mysudocmd $zfscmd get -H name $fsescaped";
 	if ($debug) { print "DEBUG: checking to see if target filesystem exists using \"$checktargetcmd 2>&1 |\"...\n"; }
 	open FH, "$checktargetcmd 2>&1 |";
@@ -1408,9 +1395,8 @@ sub dumphash() {
 
 sub getsnaps() {
 	my ($type,$rhost,$fs,$isroot,%snaps) = @_;
-	my $mysudocmd;
+	my $mysudocmd = sudocmd($isroot);
 	my $fsescaped = escapeshellparam($fs);
-	if ($isroot) { $mysudocmd = ''; } else { $mysudocmd = $sudocmd; }
 
 	if ($rhost ne '') {
 		$rhost = "$sshcmd $rhost";
@@ -1456,9 +1442,8 @@ sub getsnaps() {
 
 sub getbookmarks() {
 	my ($rhost,$fs,$isroot,%bookmarks) = @_;
-	my $mysudocmd;
+	my $mysudocmd = sudocmd($isroot);;
 	my $fsescaped = escapeshellparam($fs);
-	if ($isroot) { $mysudocmd = ''; } else { $mysudocmd = $sudocmd; }
 
 	if ($rhost ne '') {
 		$rhost = "$sshcmd $rhost";
@@ -1515,8 +1500,7 @@ sub getsendsize {
 	my $snap1escaped = escapeshellparam($snap1);
 	my $snap2escaped = escapeshellparam($snap2);
 
-	my $mysudocmd;
-	if ($isroot) { $mysudocmd = ''; } else { $mysudocmd = $sudocmd; }
+	my $mysudocmd = sudocmd($isroot);
 
 	my $sourcessh;
 	if ($sourcehost ne '') {
@@ -1627,6 +1611,17 @@ sub getreceivetoken() {
     }
 
 	return
+}
+
+sub sudocmd {
+	my $is_root = shift;
+
+	if ($is_root) {
+		return '';
+	}
+	else {
+		return $sudocmd;
+	}
 }
 
 sub parsespecialoptions {
